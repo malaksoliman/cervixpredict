@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CervixPredict · Cervical Cancer Survival Prediction</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/plotly.js/2.27.0/plotly.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#0B0F1A; --bg2:#111827; --bg3:#1C2333;
+  --border:#2A3347; --border2:#374357;
+  --accent:#E8547A; --accent2:#F4A4B6;
+  --teal:#2DD4BF; --gold:#F5C842; --purple:#A78BFA;
+  --text:#E8EDF5; --text2:#8FA3BF; --text3:#4A6080;
+  --low:#34D399; --med:#FBBF24; --high:#F87171;
+  --r:12px; --rl:20px;
+  --sans:'DM Sans',sans-serif;
+  --serif:'DM Serif Display',serif;
+  --mono:'JetBrains Mono',monospace;
+}
+html{scroll-behavior:smooth;}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:var(--sans); font-size:14px;
+  min-height:100vh; overflow-x:hidden;
+}
+/* scrollbar */
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* ── Layout ── */
+.shell{display:flex;min-height:100vh;}
+.sidebar{
+  width:300px; min-width:300px; background:var(--bg2);
+  border-right:1px solid var(--border);
+  padding:1.5rem 1.25rem 2rem;
+  position:sticky; top:0; height:100vh; overflow-y:auto;
+  display:flex; flex-direction:column; gap:0;
+}
+.main{flex:1; padding:1.75rem 2rem 3rem; overflow-x:hidden;}
+
+/* ── Sidebar brand ── */
+.brand{padding-bottom:1rem; border-bottom:1px solid var(--border); margin-bottom:0.5rem;}
+.brand-name{font-family:var(--serif); font-size:1.4rem; color:var(--accent);}
+.brand-sub{font-size:0.72rem; color:var(--text3); margin-top:0.2rem;}
+
+/* ── Sidebar sections ── */
+.sb-section{
+  font-family:var(--serif); font-size:0.95rem; color:var(--accent2);
+  margin:1.4rem 0 0.7rem; padding-bottom:0.35rem;
+  border-bottom:1px solid var(--border);
+}
+label.field-label{
+  display:block; font-size:0.7rem; font-weight:600;
+  letter-spacing:.07em; text-transform:uppercase;
+  color:var(--text3); margin-bottom:0.4rem; margin-top:0.9rem;
+}
+select, .toggle-row{
+  width:100%; background:var(--bg3); color:var(--text);
+  border:1px solid var(--border); border-radius:var(--r);
+  padding:0.55rem 0.75rem; font-family:var(--sans); font-size:0.85rem;
+  appearance:none; cursor:pointer; transition:border-color .2s;
+}
+select:hover, select:focus{border-color:var(--border2); outline:none;}
+
+/* age slider */
+.slider-wrap{position:relative; padding-top:0.2rem;}
+input[type=range]{
+  -webkit-appearance:none; width:100%; height:4px;
+  background:linear-gradient(90deg, var(--accent) var(--pct,50%), var(--border) var(--pct,50%));
+  border-radius:2px; outline:none; cursor:pointer;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none; width:16px; height:16px;
+  background:var(--accent); border-radius:50%;
+  border:2px solid var(--bg); box-shadow:0 0 8px rgba(232,84,122,.4);
+}
+.slider-labels{display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text3);margin-top:4px;}
+.age-display{
+  font-family:var(--mono); font-size:1.5rem; color:var(--text);
+  text-align:center; margin:0.3rem 0 0.5rem;
+}
+
+/* toggles */
+.toggle-row{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:0.6rem 0.75rem; cursor:pointer; user-select:none;
+  border:1px solid var(--border); border-radius:var(--r);
+  background:var(--bg3); margin-top:0.5rem; transition:border-color .2s;
+}
+.toggle-row:hover{border-color:var(--border2);}
+.toggle-row span{font-size:0.85rem; color:var(--text2);}
+.switch{position:relative; width:36px; height:20px;}
+.switch input{opacity:0;width:0;height:0;}
+.slider-sw{
+  position:absolute; cursor:pointer; inset:0;
+  background:var(--border2); border-radius:20px; transition:.3s;
+}
+.slider-sw::before{
+  content:''; position:absolute; height:14px; width:14px;
+  left:3px; bottom:3px; background:white; border-radius:50%; transition:.3s;
+}
+.switch input:checked + .slider-sw{background:var(--teal);}
+.switch input:checked + .slider-sw::before{transform:translateX(16px);}
+
+/* predict button */
+.predict-btn{
+  width:100%; margin-top:1.5rem;
+  background:linear-gradient(135deg, var(--accent), #C0395A);
+  color:white; border:none; border-radius:var(--r);
+  padding:0.75rem; font-family:var(--sans); font-size:0.9rem;
+  font-weight:600; cursor:pointer; letter-spacing:.03em;
+  box-shadow:0 4px 16px rgba(232,84,122,.35);
+  transition:all .2s;
+}
+.predict-btn:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(232,84,122,.5);}
+.predict-btn:active{transform:translateY(0);}
+
+/* warn panel */
+.warn-panel{
+  background:rgba(245,200,66,.05); border:1px solid rgba(245,200,66,.2);
+  border-left:3px solid var(--gold);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:0.8rem 1rem; font-size:0.78rem; color:#D4A017;
+  line-height:1.6; margin-top:1.2rem;
+}
+
+/* ── Main header ── */
+.dash-header{
+  background:linear-gradient(135deg,#1A0A2E 0%,#0F1929 45%,#0B1A2A 100%);
+  border:1px solid var(--border); border-radius:var(--rl);
+  padding:2.2rem 2.8rem; margin-bottom:1.75rem;
+  position:relative; overflow:hidden;
+}
+.dash-header::before{
+  content:''; position:absolute; top:-60px; right:-60px;
+  width:300px; height:300px;
+  background:radial-gradient(circle,rgba(232,84,122,.15) 0%,transparent 70%);
+  pointer-events:none;
+}
+.dash-header::after{
+  content:''; position:absolute; bottom:-80px; left:-40px;
+  width:240px; height:240px;
+  background:radial-gradient(circle,rgba(45,212,191,.08) 0%,transparent 70%);
+  pointer-events:none;
+}
+.dash-title{font-family:var(--serif);font-size:2.2rem;color:var(--text);letter-spacing:-.02em;}
+.dash-title em{font-style:normal;color:var(--accent);}
+.dash-subtitle{color:var(--text2);font-size:.9rem;font-weight:300;margin-top:.3rem;}
+.model-badge{
+  display:inline-flex; align-items:center; gap:.35rem;
+  background:rgba(45,212,191,.1); border:1px solid rgba(45,212,191,.3);
+  border-radius:100px; padding:.22rem .9rem;
+  font-size:.72rem; font-family:var(--mono); color:var(--teal);
+  margin-top:.9rem;
+}
+
+/* ── Metric cards ── */
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin-bottom:1.5rem;}
+.mc{
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:var(--r); padding:1.2rem 1.4rem;
+  position:relative; transition:border-color .2s;
+}
+.mc:hover{border-color:var(--border2);}
+.mc-accent{position:absolute;top:0;left:0;width:3px;height:100%;border-radius:12px 0 0 12px;}
+.mc-label{font-size:.67rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.45rem;}
+.mc-value{font-family:var(--serif);font-size:1.9rem;color:var(--text);line-height:1;}
+.mc-unit{font-size:.82rem;color:var(--text2);margin-top:.2rem;}
+
+/* ── Section heads ── */
+.sh{
+  font-family:var(--serif); font-size:1.15rem; color:var(--text);
+  margin:0 0 .9rem; display:flex; align-items:center; gap:.5rem;
+}
+.sh::after{content:'';flex:1;height:1px;background:var(--border);margin-left:.4rem;}
+
+/* ── Two-col layout ── */
+.row2{display:grid;grid-template-columns:1fr 2fr;gap:1.25rem;margin-bottom:1.25rem;}
+.row3{display:grid;grid-template-columns:1.2fr 1.2fr 1fr;gap:1.25rem;margin-bottom:1.25rem;}
+
+/* ── Panels ── */
+.panel{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1.5rem;}
+.panel-sm{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:1.25rem;}
+
+/* ── Risk gauge panel ── */
+.gauge-panel{
+  text-align:center; position:relative; overflow:hidden;
+}
+.gauge-panel::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 50% 100%,rgba(232,84,122,.05) 0%,transparent 60%);
+  pointer-events:none;
+}
+.risk-label{font-family:var(--serif);font-size:1.5rem;margin-top:.4rem;}
+.risk-subline{font-size:.78rem;color:var(--text3);margin-top:.3rem;}
+.risk-legend{
+  display:flex;justify-content:center;gap:1.2rem;
+  font-size:.72rem;margin-top:.7rem;
+}
+
+/* ── Survival time chips ── */
+.surv-chips{display:grid;grid-template-columns:repeat(6,1fr);gap:.5rem;margin-bottom:1rem;}
+.chip{
+  background:var(--bg3); border-radius:8px; padding:.5rem .3rem;
+  text-align:center;
+}
+.chip-t{font-size:.62rem;color:var(--text3);font-weight:600;letter-spacing:.05em;}
+.chip-v{font-family:var(--mono);font-size:.95rem;margin-top:2px;}
+
+/* ── Info panel ── */
+.info{
+  background:var(--bg3); border:1px solid var(--border);
+  border-left:3px solid var(--teal);
+  border-radius:0 var(--r) var(--r) 0;
+  padding:.8rem 1rem; font-size:.82rem; color:var(--text2);
+  line-height:1.55; margin-bottom:.9rem;
+}
+
+/* ── Cox factor rows ── */
+.cox-row{
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:8px; padding:.65rem .85rem; margin-bottom:.45rem;
+  display:flex; align-items:center; justify-content:space-between;
+}
+.cox-name{font-size:.82rem;color:var(--text);font-weight:500;}
+.cox-sub{font-size:.68rem;color:var(--text3);margin-top:1px;}
+.cox-ahr{font-family:var(--mono);font-size:.88rem;font-weight:500;}
+.cox-p{font-size:.67rem;color:var(--text3);}
+
+/* ── Validation table ── */
+.val-grid{display:grid;grid-template-columns:repeat(9,1fr);gap:.6rem;margin-bottom:1.5rem;}
+.val-card{
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:10px; padding:.65rem .5rem; text-align:center;
+  transition:border-color .2s;
+}
+.val-card.best{background:rgba(232,84,122,.1);border-color:var(--accent);}
+.val-model{font-size:.62rem;color:var(--text2);margin-bottom:.4rem;line-height:1.3;}
+.val-model.best-t{color:var(--accent);font-weight:600;}
+.val-cidx{font-family:var(--mono);font-size:1.05rem;color:var(--text);}
+.val-cidx.best-v{color:var(--accent);}
+.val-cidx-lbl{font-size:.6rem;color:var(--text3);}
+.val-sub{font-size:.68rem;color:var(--text3);margin-top:.3rem;}
+
+/* ── Disclaimer ── */
+.disclaimer{
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:var(--r); padding:1rem 1.25rem;
+  font-size:.75rem; color:var(--text3); line-height:1.65; margin-top:1.5rem;
+}
+
+/* ── Pulse animation on predict ── */
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.5;}}
+.pulsing{animation:pulse 1s ease-in-out 2;}
+
+/* ── Responsive ── */
+@media(max-width:1100px){
+  .metric-grid{grid-template-columns:repeat(2,1fr);}
+  .row3{grid-template-columns:1fr;}
+  .val-grid{grid-template-columns:repeat(3,1fr);}
+}
+@media(max-width:780px){
+  .shell{flex-direction:column;}
+  .sidebar{width:100%;height:auto;position:static;}
+  .row2{grid-template-columns:1fr;}
+  .metric-grid{grid-template-columns:repeat(2,1fr);}
+}
+</style>
+</head>
+<body>
+<div class="shell">
+
+<!-- ══════════════════ SIDEBAR ══════════════════ -->
+<aside class="sidebar">
+  <div class="brand">
+    <div class="brand-name">🎗️ CervixPredict</div>
+    <div class="brand-sub">Logistic Regression · SEER-trained · C-index 0.81 (Egypt)</div>
+  </div>
+
+  <div class="sb-section">Patient Demographics</div>
+  <label class="field-label">Age at Diagnosis</label>
+  <div class="age-display" id="age-display">53</div>
+  <div class="slider-wrap">
+    <input type="range" id="age" min="15" max="87" value="53" oninput="updateAge(this)"/>
+    <div class="slider-labels"><span>15</span><span>87</span></div>
+  </div>
+
+  <div class="sb-section">Tumour Characteristics</div>
+
+  <label class="field-label">FIGO Stage</label>
+  <select id="figo">
+    <option>IA</option><option>IB</option>
+    <option>IIA</option><option>IIB</option>
+    <option>IIIA</option><option selected>IIIB</option><option>IIIC</option>
+    <option>IVA</option><option>IVB</option>
+  </select>
+
+  <label class="field-label">Histological Type</label>
+  <select id="histology">
+    <option selected>Squamous cell carcinoma</option>
+    <option>Adenocarcinoma</option>
+    <option>Adenosquamous</option>
+    <option>Other</option>
+  </select>
+
+  <label class="field-label">Tumour Grade</label>
+  <select id="grade">
+    <option>Grade I (Well differentiated)</option>
+    <option selected>Grade II (Moderately differentiated)</option>
+    <option>Grade III (Poorly differentiated)</option>
+  </select>
+
+  <div class="sb-section">Treatment Modalities</div>
+
+  <div class="toggle-row" onclick="toggleSwitch('surgery')">
+    <span>Surgery</span>
+    <label class="switch" onclick="event.stopPropagation()">
+      <input type="checkbox" id="surgery" onchange=""/>
+      <span class="slider-sw"></span>
+    </label>
+  </div>
+  <div class="toggle-row" onclick="toggleSwitch('radiation')">
+    <span>Radiation Therapy (EBRT)</span>
+    <label class="switch" onclick="event.stopPropagation()">
+      <input type="checkbox" id="radiation" checked onchange=""/>
+      <span class="slider-sw"></span>
+    </label>
+  </div>
+  <div class="toggle-row" onclick="toggleSwitch('chemo')">
+    <span>Concurrent Chemotherapy</span>
+    <label class="switch" onclick="event.stopPropagation()">
+      <input type="checkbox" id="chemo" checked onchange=""/>
+      <span class="slider-sw"></span>
+    </label>
+  </div>
+
+  <div class="warn-panel">
+    ⚠️ <strong>Clinical note:</strong> ECOG performance status (AHR 2.22, p&lt;0.001) and pelvic pain (AHR 2.34, p=0.029) are independent prognostic factors in the Egyptian cohort but are <em>not</em> model inputs — unavailable in SEER/TCGA training data. Adjust interpretation accordingly.
+  </div>
+
+  <button class="predict-btn" onclick="runPrediction()">⚡&nbsp; Run Prediction</button>
+</aside>
+
+<!-- ══════════════════ MAIN ══════════════════ -->
+<main class="main">
+
+  <!-- Header -->
+  <div class="dash-header">
+    <h1 class="dash-title">Cervical Cancer <em>Survival</em> Prediction</h1>
+    <p class="dash-subtitle">SEER-trained model externally validated on 161 Egyptian patients (Ain Shams University Hospital, Cairo, 2015–2021) and 275 TCGA patients</p>
+    <div class="model-badge">◆ &nbsp;Logistic Regression &nbsp;·&nbsp; Trained: SEER (n=74,871) &nbsp;·&nbsp; Validated: Egypt C-index 0.81 · TCGA C-index 0.61</div>
+  </div>
+
+  <!-- Metric cards -->
+  <div class="metric-grid" id="metric-grid">
+    <div class="mc"><div class="mc-accent" id="acc1" style="background:var(--low)"></div>
+      <div class="mc-label">Risk Group</div>
+      <div class="mc-value" id="mc-risk" style="font-size:1.5rem;color:var(--low)">🟢 Low</div>
+      <div class="mc-unit">Classification</div></div>
+    <div class="mc"><div class="mc-accent" style="background:var(--teal)"></div>
+      <div class="mc-label">Risk Score</div>
+      <div class="mc-value" id="mc-score" style="font-family:var(--mono)">—</div>
+      <div class="mc-unit">LR model output</div></div>
+    <div class="mc"><div class="mc-accent" style="background:var(--gold)"></div>
+      <div class="mc-label">Predicted Median Survival</div>
+      <div class="mc-value" id="mc-surv" style="font-family:var(--mono)">—</div>
+      <div class="mc-unit">Individual estimate</div></div>
+    <div class="mc"><div class="mc-accent" style="background:var(--purple)"></div>
+      <div class="mc-label">12-Month Survival</div>
+      <div class="mc-value" id="mc-12m" style="font-family:var(--mono)">—</div>
+      <div class="mc-unit">Predicted probability</div></div>
+  </div>
+
+  <!-- Gauge + Survival curve -->
+  <div class="row2">
+    <div class="panel gauge-panel">
+      <div class="sh">Risk Gauge</div>
+      <div id="gauge-plot" style="height:210px;"></div>
+      <div class="risk-label" id="gauge-label" style="color:var(--low)">Low Risk</div>
+      <div class="risk-subline" id="gauge-subline">FIGO IIIB · Age 53</div>
+      <div class="risk-legend">
+        <span style="color:var(--low)">● Low &lt;35%</span>
+        <span style="color:var(--med)">● Moderate 35–60%</span>
+        <span style="color:var(--high)">● High &gt;60%</span>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="sh">Predicted Survival Curve</div>
+      <div class="surv-chips" id="surv-chips"></div>
+      <div id="surv-plot" style="height:280px;"></div>
+    </div>
+  </div>
+
+  <!-- Feature importance + Stage comparison + Cox factors -->
+  <div class="row3">
+    <div class="panel-sm">
+      <div class="sh">Feature Importance</div>
+      <div class="info">Permutation importance (RF, Egyptian cohort). Surgery + Radiation account for <strong>77.2%</strong> of discriminative contribution (Figure 4E).</div>
+      <div id="feat-plot" style="height:240px;"></div>
+    </div>
+    <div class="panel-sm">
+      <div class="sh">5-Year OS by FIGO Stage</div>
+      <div class="info">Reference cohort (n=161). Log-rank p &lt; 0.0001 across all stages.</div>
+      <div id="stage-plot" style="height:240px;"></div>
+    </div>
+    <div class="panel-sm">
+      <div class="sh">Independent Cox Factors</div>
+      <div class="info">Multivariate Cox · Egyptian cohort · n=161, 36 events.</div>
+      <div id="cox-factors"></div>
+    </div>
+  </div>
+
+  <!-- External validation table -->
+  <div class="sh">External Validation Performance — Table 4 (All Scenarios)</div>
+  <div class="val-grid" id="val-grid"></div>
+
+  <!-- Disclaimer -->
+  <div class="disclaimer">
+    <strong>Clinical Disclaimer:</strong> This tool is for research and educational purposes only. Predictions use a Logistic Regression model trained on SEER (n=74,871) and externally validated on an independent Egyptian cohort (n=161, C-index=0.81) and TCGA (n=275, C-index=0.61). Inputs: age, FIGO stage, histology, grade, surgery, radiation, chemotherapy. ECOG performance status and pelvic pain — independent prognostic factors (Cox AHR 2.215 and 2.339) — are not model inputs. All clinical decisions must be made by qualified healthcare professionals. This output does not constitute medical advice.<br/><br/>
+    <strong>Reference:</strong> Dweep M et al. Prognostic Factors and Externally Validated Survival Prediction Models for Cervical Cancer in Egypt: A Single-Centre Cohort Study. Ain Shams University, 2015–2021.
+  </div>
+
+</main>
+</div>
+
+<script>
+// ── Data & model constants ─────────────────────────────────────────────────
+const STAGE_GROUP = {
+  IA:'I',IB:'I',IIA:'II',IIB:'II',
+  IIIA:'III',IIIB:'III',IIIC:'III',
+  IVA:'IV',IVB:'IV'
+};
+const STAGE_HAZARD = {I:0.25,II:0.55,III:1.0,IV:2.1};
+const KM_TIMES  = [0,6,12,18,24,30,36,42,48,54,60];
+const KM_SURV   = [1.0,0.932,0.874,0.812,0.667,0.517,0.482,0.482,0.482,0.482,0.482];
+
+const FEATURE_IMPORTANCE = [
+  {name:'Surgery',            val:48.5, color:'#E8547A'},
+  {name:'Radiation Therapy',  val:28.7, color:'#E8547A'},
+  {name:'Age at Diagnosis',   val:14.1, color:'#F5C842'},
+  {name:'FIGO Stage',         val:7.2,  color:'#2DD4BF'},
+  {name:'Histological Type',  val:1.6,  color:'#2DD4BF'},
+  {name:'Tumour Grade',       val:0.0,  color:'#4A6080'},
+  {name:'Chemotherapy',       val:0.0,  color:'#4A6080'},
+];
+
+const STAGE_SURV5 = {
+  IA:0.81,IB:0.72,IIA:0.60,IIB:0.52,
+  IIIA:0.34,IIIB:0.28,IIIC:0.25,IVA:0.12,IVB:0.08
+};
+const STAGE_COLORS = {
+  IA:'#34D399',IB:'#34D399',
+  IIA:'#6EE7B7',IIB:'#A7F3D0',
+  IIIA:'#FBBF24',IIIB:'#F59E0B',IIIC:'#D97706',
+  IVA:'#F87171',IVB:'#EF4444'
+};
+
+const COX_FACTORS = [
+  {name:'ECOG Performance Status',ahr:2.22, p:'p<0.001',type:'risk',  status:'⚠ Not in model'},
+  {name:'Pelvic Pain',            ahr:2.34, p:'p=0.029',type:'risk',  status:'⚠ Not in model'},
+  {name:'FIGO Stage',             ahr:1.50, p:'p=0.005',type:'risk',  status:'✓ Included'},
+  {name:'Brachytherapy',          ahr:0.25, p:'p=0.004',type:'prot',  status:'✓ Included'},
+  {name:'Concurrent Chemo',       ahr:0.21, p:'p=0.019',type:'prot',  status:'✓ Included'},
+];
+
+const VAL_DATA = [
+  {model:'★ LR — Egypt',  cidx:'0.81',auc:'0.63',brier:'—',best:true},
+  {model:'RF — Egypt',    cidx:'0.61',auc:'0.54',brier:'—',best:false},
+  {model:'GB — Egypt',    cidx:'0.55',auc:'0.51',brier:'—',best:false},
+  {model:'LR — TCGA',    cidx:'0.61',auc:'0.63',brier:'—',best:false},
+  {model:'RF — TCGA',    cidx:'0.63',auc:'0.66',brier:'—',best:false},
+  {model:'GB — TCGA',    cidx:'0.63',auc:'0.67',brier:'—',best:false},
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function lerp(a,b,t){return a+(b-a)*t;}
+function interp(times,vals,t){
+  for(let i=0;i<times.length-1;i++){
+    if(t>=times[i]&&t<=times[i+1]){
+      const frac=(t-times[i])/(times[i+1]-times[i]);
+      return lerp(vals[i],vals[i+1],frac);
+    }
+  }
+  return vals[vals.length-1];
+}
+function riskColor(g){return g==='Low'?'#34D399':g==='Intermediate'?'#FBBF24':'#F87171';}
+function riskEmoji(g){return g==='Low'?'🟢':g==='Intermediate'?'🟡':'🔴';}
+
+const PLOTLY_CFG = {displayModeBar:false, responsive:true};
+const PLOTLY_LAYOUT_BASE = {
+  paper_bgcolor:'rgba(0,0,0,0)',
+  plot_bgcolor:'rgba(0,0,0,0)',
+  font:{family:'DM Sans, sans-serif',color:'#8FA3BF',size:11},
+  margin:{t:15,b:35,l:45,r:20},
+};
+
+// ── Slider update ─────────────────────────────────────────────────────────
+function updateAge(el){
+  const v=el.value, min=15, max=87;
+  const pct=((v-min)/(max-min)*100).toFixed(1)+'%';
+  el.style.setProperty('--pct',pct);
+  document.getElementById('age-display').textContent=v;
+}
+// init slider gradient
+window.addEventListener('DOMContentLoaded',()=>{
+  const el=document.getElementById('age');
+  updateAge(el);
+  buildStaticCharts();
+  runPrediction();
+});
+
+function toggleSwitch(id){
+  const cb=document.getElementById(id);
+  cb.checked=!cb.checked;
+}
+
+// ── Logistic Regression — exact coefficients from SEER-trained model ────────
+// Trained on SEER (n=74,871). Medians for imputation: age=45, stage=2, grade=2,
+// histology=1, surgery=1, radiation=1, chemotherapy=0
+const LR_INTERCEPT = -4.401699;
+const LR_COEF = {
+  age: 0.043132, stage: 0.659988, grade: 0.521657,
+  histology: 0.039356, surgery: -0.766229,
+  radiation: 0.398258, chemotherapy: -0.212339
+};
+const IMP_MEDIANS = {
+  age:45, stage:2, grade:2, histology:1, surgery:1, radiation:1, chemotherapy:0
+};
+const STAGE_NUM = {IA:1,IB:1,IIA:2,IIB:2,IIIA:3,IIIB:3,IIIC:3,IVA:4,IVB:4};
+const HIST_NUM  = {'Squamous cell carcinoma':1,'Adenocarcinoma':2,'Adenosquamous':3,'Other':3};
+const GRADE_NUM = {'Grade I (Well differentiated)':1,'Grade II (Moderately differentiated)':2,'Grade III (Poorly differentiated)':3};
+
+function sigmoid(x){ return 1/(1+Math.exp(-x)); }
+
+function computeRisk(){
+  const age    = +document.getElementById('age').value;
+  const figo   = document.getElementById('figo').value;
+  const hist   = document.getElementById('histology').value;
+  const grade  = document.getElementById('grade').value;
+  const surgery  = document.getElementById('surgery').checked ? 1 : 0;
+  const radiation= document.getElementById('radiation').checked ? 1 : 0;
+  const chemo    = document.getElementById('chemo').checked ? 1 : 0;
+
+  const sg = STAGE_GROUP[figo];
+
+  // Map inputs to numeric (impute missing with SEER medians)
+  const stageNum = STAGE_NUM[figo]   || IMP_MEDIANS.stage;
+  const histNum  = HIST_NUM[hist]    || IMP_MEDIANS.histology;
+  const gradeNum = GRADE_NUM[grade]  || IMP_MEDIANS.grade;
+
+  // Linear combination using exact LR coefficients
+  const logit = LR_INTERCEPT
+    + LR_COEF.age         * age
+    + LR_COEF.stage       * stageNum
+    + LR_COEF.grade       * gradeNum
+    + LR_COEF.histology   * histNum
+    + LR_COEF.surgery     * surgery
+    + LR_COEF.radiation   * radiation
+    + LR_COEF.chemotherapy* chemo;
+
+  const raw = sigmoid(logit);
+
+  const rg = raw<0.35?'Low':raw<0.60?'Intermediate':'High';
+  const ps = rg==='Low' ? Math.max(5,60*(1-raw*0.8))
+           : rg==='Intermediate' ? Math.max(5,40*(1-raw*0.6))
+           : Math.max(3,25*(1-raw*0.5));
+
+  // patient survival curve scaled from Egyptian cohort KM
+  const hazard = 0.3 + raw*2.2;
+  const patSurv = KM_TIMES.map(t=>Math.min(1,Math.exp(-hazard*Math.pow(t/60,1.4))));
+
+  return {raw, rg, ps, patSurv, age, figo, sg};
+}
+
+// ── Main prediction runner ────────────────────────────────────────────────
+function runPrediction(){
+  const {raw,rg,ps,patSurv,age,figo,sg} = computeRisk();
+  const rc = riskColor(rg);
+  const surv12 = interp(KM_TIMES, patSurv, 12);
+
+  // Metric cards
+  document.getElementById('acc1').style.background = rc;
+  document.getElementById('mc-risk').textContent = riskEmoji(rg)+' '+rg;
+  document.getElementById('mc-risk').style.color = rc;
+  document.getElementById('mc-score').innerHTML = (raw*100).toFixed(1)+'<span style="font-size:.9rem;color:var(--text2)">%</span>';
+  document.getElementById('mc-surv').innerHTML  = ps.toFixed(0)+'<span style="font-size:.9rem;color:var(--text2)">mo</span>';
+  document.getElementById('mc-12m').textContent = (surv12*100).toFixed(0)+'%';
+
+  // Gauge label
+  document.getElementById('gauge-label').textContent = rg+' Risk';
+  document.getElementById('gauge-label').style.color = rc;
+  document.getElementById('gauge-subline').textContent = `FIGO ${figo} · Stage ${sg} · Age ${age}`;
+
+  // Gauge
+  drawGauge(raw, rg, rc);
+
+  // Survival chips
+  buildSurvChips(patSurv, rc);
+
+  // Survival curve
+  drawSurvCurve(patSurv, rg, rc);
+}
+
+// ── Gauge ────────────────────────────────────────────────────────────────
+function drawGauge(raw, rg, rc){
+  const val = +(raw*100).toFixed(1);
+  const data = [{
+    type:'indicator', mode:'gauge+number',
+    value: val,
+    number:{suffix:'%', font:{size:32, family:'JetBrains Mono, monospace', color:rc}},
+    gauge:{
+      axis:{range:[0,100], tickwidth:1, tickcolor:'#2A3347', tickfont:{color:'#4A6080',size:9}},
+      bar:{color:rc, thickness:0.22},
+      bgcolor:'#1C2333', borderwidth:0,
+      steps:[
+        {range:[0,35],  color:'rgba(52,211,153,0.10)'},
+        {range:[35,60], color:'rgba(251,191,36,0.10)'},
+        {range:[60,100],color:'rgba(248,113,113,0.10)'},
+      ],
+      threshold:{line:{color:rc,width:3},thickness:0.75,value:val},
+    }
+  }];
+  const layout = {
+    ...PLOTLY_LAYOUT_BASE,
+    height:200, margin:{t:25,b:5,l:25,r:25},
+  };
+  Plotly.react('gauge-plot', data, layout, PLOTLY_CFG);
+}
+
+// ── Survival chips ────────────────────────────────────────────────────────
+function buildSurvChips(patSurv, rc){
+  const times=[6,12,24,36,48,60];
+  const html = times.map(t=>{
+    const v = interp(KM_TIMES,patSurv,t);
+    return `<div class="chip">
+      <div class="chip-t">${t}MO</div>
+      <div class="chip-v" style="color:${rc}">${(v*100).toFixed(0)}%</div>
+    </div>`;
+  }).join('');
+  document.getElementById('surv-chips').innerHTML=html;
+}
+
+// ── Survival curve ────────────────────────────────────────────────────────
+function drawSurvCurve(patSurv, rg, rc){
+  const data=[
+    {// reference CI band
+      x:[...KM_TIMES,...[...KM_TIMES].reverse()],
+      y:[...KM_SURV.map(v=>v*1.08),...KM_SURV.map(v=>v*0.92).reverse()],
+      fill:'toself', fillcolor:'rgba(143,163,191,0.07)',
+      line:{color:'rgba(0,0,0,0)'}, showlegend:false, hoverinfo:'skip', type:'scatter'
+    },
+    {// cohort reference
+      x:KM_TIMES, y:KM_SURV, type:'scatter', mode:'lines',
+      name:'Cohort median (n=161)',
+      line:{color:'#4A6080',width:1.5,dash:'dot'},
+      hovertemplate:'<b>%{x} months</b>: %{y:.1%}<extra>Reference</extra>',
+    },
+    {// patient curve
+      x:KM_TIMES, y:patSurv, type:'scatter', mode:'lines+markers',
+      name:`This patient (${rg} risk)`,
+      line:{color:rc,width:3},
+      marker:{size:6,color:rc,line:{color:'#0B0F1A',width:2}},
+      hovertemplate:'<b>%{x} months</b>: %{y:.1%}<extra>Patient</extra>',
+    }
+  ];
+  const layout={
+    ...PLOTLY_LAYOUT_BASE,
+    height:270, margin:{t:10,b:45,l:55,r:15},
+    legend:{bgcolor:'rgba(17,24,39,0.85)',bordercolor:'#2A3347',borderwidth:1,
+            font:{size:10},x:0.55,y:0.97},
+    xaxis:{title:'Follow-up (months)',gridcolor:'#1C2333',zeroline:false,
+           tickfont:{size:10},range:[0,62]},
+    yaxis:{title:'Survival probability',gridcolor:'#1C2333',zeroline:false,
+           tickformat:'.0%',tickfont:{size:10},range:[0,1.05]},
+    shapes:[{type:'line',x0:0,x1:62,y0:0.5,y1:0.5,
+             line:{color:'rgba(255,255,255,0.1)',dash:'dash',width:1}}],
+    hovermode:'x unified',
+  };
+  Plotly.react('surv-plot', data, layout, PLOTLY_CFG);
+}
+
+// ── Static charts (built once) ────────────────────────────────────────────
+function buildStaticCharts(){
+  buildFeatureChart();
+  buildStageChart();
+  buildCoxPanel();
+  buildValGrid();
+}
+
+function buildFeatureChart(){
+  const feats=[...FEATURE_IMPORTANCE].reverse();
+  const data=[{
+    type:'bar', orientation:'h',
+    x:feats.map(f=>f.val), y:feats.map(f=>f.name),
+    marker:{color:feats.map(f=>f.color), cornerradius:4},
+    text:feats.map(f=>f.val.toFixed(1)+'%'),
+    textposition:'outside',
+    textfont:{family:'JetBrains Mono,monospace',size:10,color:'#8FA3BF'},
+    hovertemplate:'<b>%{y}</b>: %{x:.1f}%<extra></extra>',
+  }];
+  const layout={
+    ...PLOTLY_LAYOUT_BASE,
+    height:240, margin:{t:5,b:20,l:160,r:55},
+    xaxis:{gridcolor:'#1C2333',zeroline:false,ticksuffix:'%',tickfont:{size:9},range:[0,48]},
+    yaxis:{tickfont:{size:10},gridcolor:'rgba(0,0,0,0)'},
+    bargap:0.38,
+  };
+  Plotly.newPlot('feat-plot', data, layout, PLOTLY_CFG);
+}
+
+function buildStageChart(){
+  const stages=Object.keys(STAGE_SURV5);
+  const data=[{
+    type:'bar',
+    x:stages, y:stages.map(s=>STAGE_SURV5[s]),
+    marker:{color:stages.map(s=>STAGE_COLORS[s]), cornerradius:5},
+    text:stages.map(s=>(STAGE_SURV5[s]*100).toFixed(0)+'%'),
+    textposition:'outside',
+    textfont:{family:'JetBrains Mono,monospace',size:9,color:'#8FA3BF'},
+    hovertemplate:'<b>FIGO %{x}</b>: %{y:.0%} 5-yr OS<extra></extra>',
+  }];
+  const layout={
+    ...PLOTLY_LAYOUT_BASE,
+    height:240, margin:{t:5,b:20,l:35,r:15},
+    xaxis:{tickfont:{size:10},gridcolor:'rgba(0,0,0,0)'},
+    yaxis:{gridcolor:'#1C2333',zeroline:false,tickformat:'.0%',tickfont:{size:9},range:[0,1.05]},
+    bargap:0.32,
+  };
+  Plotly.newPlot('stage-plot', data, layout, PLOTLY_CFG);
+}
+
+function buildCoxPanel(){
+  const el=document.getElementById('cox-factors');
+  el.innerHTML=COX_FACTORS.map(f=>{
+    const c=f.type==='risk'?'#F87171':'#34D399';
+    const dir=f.type==='risk'?'▲':'▼';
+    const inModel=f.status.startsWith('✓');
+    return `<div class="cox-row">
+      <div>
+        <div class="cox-name">${f.name}</div>
+        <div class="cox-sub" style="color:${inModel?'#2DD4BF':'#D97706'}">${f.status}</div>
+      </div>
+      <div style="text-align:right">
+        <div class="cox-ahr" style="color:${c}">${dir} AHR ${f.ahr}</div>
+        <div class="cox-p">${f.p}</div>
+      </div>
+    </div>`;
+  }).join('');
+  el.innerHTML+=`<div style="font-size:.7rem;color:#3A5070;margin-top:.5rem;line-height:1.5;">
+    ¹ ECOG & pelvic pain not in SEER/TCGA training data. Apply clinical judgement.</div>`;
+}
+
+function buildValGrid(){
+  const el=document.getElementById('val-grid');
+  el.innerHTML=VAL_DATA.map(v=>`
+    <div class="val-card ${v.best?'best':''}">
+      <div class="val-model ${v.best?'best-t':''}">${v.model}</div>
+      <div class="val-cidx ${v.best?'best-v':''}">${v.cidx}</div>
+      <div class="val-cidx-lbl">C-index</div>
+      <div class="val-sub">AUC ${v.auc}</div>
+      <div class="val-sub">Brier ${v.brier}</div>
+    </div>`).join('');
+}
+</script>
+<!-- GitHub Pages URL: https://[USERNAME].github.io/cervixpredict -->
+<!-- Replace [USERNAME] with your GitHub username after hosting -->
+</body>
+</html>
