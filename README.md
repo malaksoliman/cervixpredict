@@ -61,14 +61,7 @@ This tool is for **research and educational purposes only**. It does not constit
 
 ---
 
-## How to Deploy on GitHub Pages
 
-1. Create a new GitHub repository named `cervixpredict`
-2. Upload `index.html` (rename `cervical_cancer_dashboard_v2.html` → `index.html`)
-3. Go to **Settings → Pages → Source → Deploy from branch → main → / (root)**
-4. Your tool will be live at `https://[USERNAME].github.io/cervixpredict`
-
----
 
 ## Citation
 
