@@ -57,7 +57,7 @@ An interactive clinical decision-support tool for individual cervical cancer sur
 
 ## Clinical Disclaimer
 
-This tool is for **research and educational purposes only**. It does not constitute medical advice. All clinical decisions must be made by qualified healthcare professionals. ECOG performance status and pelvic pain — independent prognostic factors in the Egyptian cohort (AHR 2.22 and 2.34 respectively) — are not model inputs as they are not available in the SEER/TCGA training data; clinical judgement should be applied accordingly.
+This tool is for **research and educational purposes only**. It does not constitute medical advice. All clinical decisions must be made by qualified healthcare professionals. clinical judgement should be applied accordingly.
 
 ---
 
