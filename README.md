@@ -11,9 +11,7 @@ An interactive clinical decision-support tool for individual cervical cancer sur
 
 ## 🔗 Live Tool
 
-**[https://malaksoliman.github.io/cervixpredict]([https://[USERNAME].github.io/cervixpredict](https://malaksoliman.github.io/cervixpredict))**  
-
----
+[Open CervixPredict Tool](https://malaksoliman.github.io/cervixpredict)
 
 ## Model Details
 
